@@ -4,16 +4,23 @@ var __ = require('underscore'),
 Backbone.$ = $;
 
 var homeView = require('./views/homeVw'),
-    userPageView = require('./views/userPageVw');
+    userPageView = require('./views/userPageVw'),
+    aboutView = require('./views/aboutVw');
+    donateView = require('./views/donateVw');
 
 module.exports = Backbone.Router.extend({
 
   initialize: function(options){
     this.options = options || {};
+    /*
+    expects options.userModel from app.js
+     */
+    //this.socketView = new socketView({model: options.userModel});
+    this.socketView = options.socketView;
   },
 
   routes: {
-    "": "home",
+    "": "userPage",
     "home": "home",
     "myPage": "userPage",
     "userPage": "userPage",
@@ -26,21 +33,33 @@ module.exports = Backbone.Router.extend({
     "notifications": "notifications",
     "settings": "settings",
     "about": "about",
-    "support": "support"
+    "support": "donate"
   },
 
   newView: function(view){
     this.view && (this.view.close ? this.view.close() : this.view.remove());
     this.view = view;
     $('body').removeClass("userPage");//add other body style classes if they are created
+    $('#obContainer').removeClass("box-borderDashed"); //remove customization styling if present
+    //clear address bar. This will be replaced on the user page
+    window.obEventBus.trigger("setAddressBar", "");
   },
 
   home: function(){
-    this.newView(new homeView({userModel: this.options.userModel}));
+    this.newView(new homeView({
+      userModel: this.options.userModel,
+      socketView: this.socketView
+    }));
   },
 
   userPage: function(userID, state, itemHash){
-    this.newView(new userPageView({userModel: this.options.userModel, userID: userID, state: state, itemHash: itemHash}));
+    this.newView(new userPageView({
+      userModel: this.options.userModel,
+      userID: userID,
+      state: state,
+      itemHash: itemHash,
+      socketView: this.socketView
+    }));
     $('body').addClass("userPage");
   },
 
@@ -49,7 +68,11 @@ module.exports = Backbone.Router.extend({
   },
 
   sellItem: function(){
-    this.newView(new userPageView({userModel: this.options.userModel, userID: this.options.userModel.get('guid'), state: 'itemNew'}));
+    this.newView(new userPageView({
+      userModel: this.options.userModel,
+      userID: this.options.userModel.get('guid'),
+      state: 'itemNew'
+    }));
     $('body').addClass("userPage");
   },
 
@@ -74,10 +97,12 @@ module.exports = Backbone.Router.extend({
   },
 
   about: function(){
+    this.newView(new aboutView());
     console.log("about");
   },
 
-  support: function(){
+  donate: function(){
+    this.newView(new donateView());
     console.log("support");
   }
 

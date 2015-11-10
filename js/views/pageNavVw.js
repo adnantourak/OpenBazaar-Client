@@ -6,7 +6,10 @@ var __ = require('underscore'),
     languagesModel = require('../models/languagesMd'),
     countryListView = require('../views/countryListVw'),
     currencyListView = require('../views/currencyListVw'),
-    languageListView = require('../views/languageListVw');
+    languageListView = require('../views/languageListVw'),
+    adminPanelView = require('../views/adminPanelVw'),
+    notificationsPanelView = require('../views/notificationsPanelVw'),
+    remote = require('remote');
 
 module.exports = Backbone.View.extend({
 
@@ -18,7 +21,11 @@ module.exports = Backbone.View.extend({
     'click .js-navMax': 'navMaxClick',
     'click .js-navBack': 'navBackClick',
     'click .js-navFwd': 'navFwdClick',
+    'click .js-navNotifications': 'navNotificationsClick',
     'click .js-navProfile': 'navProfileClick',
+    'click .js-navRefresh': 'navRefreshClick',
+    'click .js-navAdminPanel': 'navAdminPanel',
+    'click .js-navProfileMenu a': 'closeNav',
     'click .js-homeModal-countrySelect': 'countrySelect',
     'click .js-homeModal-currencySelect': 'currencySelect',
     'click .js-homeModal-languageSelect': 'languageSelect',
@@ -28,26 +35,40 @@ module.exports = Backbone.View.extend({
     'click .js-homeModal-cancelHandle': 'cancelHandle',
     'change .js-homeModalAvatarUpload': 'uploadAvatar',
     'click .js-homeModalDone': 'settingsDone',
-    'click .js-closeModal': 'closeModal'
+    'click .js-closeModal': 'closeModal',
+    'keyup .js-navAddressBar': 'addressBarKeyup',
+    'click .js-closeStatus': 'closeStatusBar'
   },
 
-  initialize: function(){
+  initialize: function(options){
+    "use strict";
     var self = this;
+    this.socketView = options.socketView;
     this.subViews = [];
     this.languages = new languagesModel();
+    this.options = options || {};
 
-  //when language is changed, re-render
+    this.currentWindow = remote.getCurrentWindow();
+
+    //when language is changed, re-render
     this.listenTo(this.model, 'change:language', function(){
       var newLang = this.model.get("language");
       window.polyglot = new Polyglot({locale: newLang});
       window.polyglot.extend(__.where(this.languages.get('languages'), {langCode: newLang})[0]);
       this.render();
+      //refresh the current page
+      Backbone.history.loadUrl();
     });
+
+    //get notifications. They are listened for in the notificationsPanelVw.js file
+    this.socketNotificationsID = Math.random().toString(36).slice(2);
+    this.socketView.getNotifications(this.socketNotificationsID);
 
     this.render();
   },
 
   initAccordion: function(targ){
+    "use strict";
     var acc = $(targ);
     var accWidth = acc.width();
     var accHeight = acc.height();
@@ -57,26 +78,26 @@ module.exports = Backbone.View.extend({
 
     accWin.css({'left':0, 'width': function(){return accWidth * accNum;}});
     accChildren.css({'width':accWidth, 'height':accHeight});
-    acc.find('.js-accordianNext').on('click', function(){
-      var oldPos = accWin.css('left').replace("px",""); //TODO: Fix implicit casting to Number
+    acc.find('.js-accordionNext').on('click', function(){
+      var oldPos = accWin.css('left').replace("px","");
       if(oldPos > (accWidth * accNum * -1 + accWidth)){
         accWin.css('left', function(){
-          return parseInt(accWin.css('left').replace("px","")) - accWidth; //TODO: Change parseInt to Number to avoid radix
+          return parseInt(accWin.css('left').replace("px","")) - accWidth;
         });
       }
       // focus search input
       $(this).closest('.accordion-child').next('.accordion-child').find('.search').focus();
     });
-    acc.find('.js-accordianPrev').on('click', function(){
-      var oldPos = accWin.css('left').replace("px","");  //TODO: Fix implicit casting to Number
+    acc.find('.js-accordionPrev').on('click', function(){
+      var oldPos = accWin.css('left').replace("px","");
       if(oldPos < (0)){
         accWin.css('left', function(){
-          return parseInt(accWin.css('left').replace("px","")) + accWidth; //TODO: Change parseInt to Number to avoid radix
+          return parseInt(accWin.css('left').replace("px","")) + accWidth;
         });
       }
     });
     //set up filterable lists.
-    //TODO: this is terrible, redo so it runs when all subviews are done rendering
+    //TODO: this is terrible, change to run when an event is emmitted from the subviews marking them as done rendering
     setTimeout(function(){
       var List = window.List;
       var countryList = new List('homeModal-countryList', {valueNames: ['homeModal-country']});
@@ -86,58 +107,184 @@ module.exports = Backbone.View.extend({
     }, 1000);
   },
 
+  closeNav: function(){
+    "use strict";
+    var targ = this.$el.find('.js-navProfileMenu');
+    targ.addClass('hide');
+    $('#overlay').addClass('fadeOut hide');
+  },
+
   render: function(){
+    "use strict";
     var self = this;
     loadTemplate('./js/templates/pageNav.html', function(loadedTemplate) {
       self.$el.html(loadedTemplate(self.model.toJSON()));
-      var countryList = new countryListView({el: '.js-homeModal-countryList', selected: self.model.get('country')});
-      var currencyList = new currencyListView({el: '.js-homeModal-currencyList', selected: self.model.get('currencyCode')});
-      var languageList = new languageListView({el: '.js-homeModal-languageList', selected: self.model.get('language')});
+      self.countryList = new countryListView({el: '.js-homeModal-countryList', selected: self.model.get('country')});
+      self.currencyList = new currencyListView({el: '.js-homeModal-currencyList', selected: self.model.get('currency_code')});
+      self.languageList = new languageListView({el: '.js-homeModal-languageList', selected: self.model.get('language')});
+      self.subViews.push(self.countryList);
+      self.subViews.push(self.currencyList);
+      self.subViews.push(self.languageList);
       self.initAccordion('.js-profileAccordion');
       if(self.model.get('beenSet')){
         self.$el.find('.js-homeModal').hide();
       }
+      self.notificationsPanel = new notificationsPanelView({
+        parentEl: '#notificationsPanel',
+        socketView: self.socketView,
+        server_url: self.options.model.attributes.server_url
+      });
+      self.subViews.push(self.notificationsPanel);
+      //add the admin panel
+      self.adminPanel = new adminPanelView({model: self.model});
+      self.subViews.push(self.adminPanel);
+      self.addressInput = self.$el.find('.js-navAddressBar');
+      self.addressBarGoBtn = self.$el.find('.js-navAddressBarGo');
+      self.statusBar = self.$el.find('.js-navStatusBar');
+      //listen for address bar set events
+      self.listenTo(window.obEventBus, "setAddressBar", function(setText){
+        self.addressInput.val(setText);
+        self.closeStatusBar();
+      });
     });
     return this;
   },
 
-  navProfileClick: function(e){
+  navNotificationsClick: function(e){
+    "use strict";
     e.stopPropagation();
-    var targ = this.$el.find('.js-navProfileMenu');
+    var targ = this.$el.find('.js-navNotificationsMenu');
+    targ.siblings('.popMenu').addClass('hide');
     if(targ.hasClass('hide')){
       targ.removeClass('hide');
+      $('#overlay').removeClass('hide');
       $('html').on('click.closeNav', function(e){
         if($(e.target).closest(targ).length === 0){
           targ.addClass('hide');
+          $('#overlay').addClass('hide');
           $(this).off('.closeNav');
         }
       });
     }else{
       targ.addClass('hide');
+      $('#overlay').addClass('fadeOut hide');
+    }
+  },
+
+  navProfileClick: function(e){
+    "use strict";
+    e.stopPropagation();
+    var targ = this.$el.find('.js-navProfileMenu');
+    targ.siblings('.popMenu').addClass('hide');
+    if(targ.hasClass('hide')){
+      targ.removeClass('hide');
+      $('#overlay').removeClass('fadeOut hide');
+      $('html').on('click.closeNav', function(e){
+        if($(e.target).closest(targ).length === 0){
+          targ.addClass('hide');
+          $('#overlay').addClass('fadeOut hide');
+          $(this).off('.closeNav');
+        }
+      });
+    }else{
+      targ.addClass('hide');
+      $('#overlay').addClass('fadeOut hide');
     }
   },
 
   navCloseClick: function(){
-    console.log("Nav Close Clicked");
+    "use strict";
+    var process = remote.process;
+    if (process.platform != 'darwin') {
+      this.currentWindow.close();
+    } else {
+      this.currentWindow.hide();
+    }
   },
 
   navMinClick: function(){
-    console.log("Nav Min Clicked");
+    "use strict";
+    this.currentWindow.minimize();
   },
 
   navMaxClick: function(){
-    console.log("Nav Max Clicked");
+    "use strict";
+    if(this.currentWindow.isMaximized()){
+      this.currentWindow.unmaximize();
+    } else {
+      this.currentWindow.maximize();
+    }
   },
 
   navBackClick: function(){
-    console.log("Nav Back Clicked");
+    "use strict";
+    window.history.back();
   },
 
   navFwdClick: function(){
-    console.log("Nav Fwd Clicked");
+    "use strict";
+    window.history.forward();
+  },
+
+  navRefreshClick: function(){
+    "use strict";
+    this.currentWindow.reload();
+  },
+
+  addressBarKeyup: function(e){
+    "use strict";
+    var barText = this.addressInput.val();
+    if(barText.length > 0){
+      //detect enter key
+      if (e.keyCode == 13){
+        this.addressBarProcess(barText);
+        this.addressBarGoBtn.addClass("fadeOut");
+      } else {
+        this.addressBarGoBtn.removeClass("fadeOut");
+        this.closeStatusBar();
+      }
+    } else {
+      this.addressBarGoBtn.addClass("fadeOut");
+      this.closeStatusBar();
+    }
+  },
+
+  addressBarProcess: function(addressBarText){
+    "use strict";
+    var guid = "",
+        handle = "",
+        state = "",
+        itemHash = "",
+        addressTextArray = addressBarText.split("/");
+
+    state = addressTextArray[1] ? "/" + addressTextArray[1] : "";
+    itemHash = addressTextArray[2] ? "/" + addressTextArray[2] : "";
+
+    if(addressTextArray[0].charAt(0) == "@"){
+      handle = addressTextArray[0];
+      this.showStatusBar('Navigation by handle is not supported yet.');
+    } else if(addressTextArray[0].length === 40){
+      guid = addressTextArray[0];
+      Backbone.history.navigate('#userPage/' + guid + state + itemHash, {trigger:true});
+    } else {
+      this.showStatusBar('This is not a valid user GUID or handle.');
+    }
+
+  },
+
+  showStatusBar: function(msgText){
+    "use strict";
+    this.statusBar.find('.js-statusBarMessage').text(msgText);
+    this.statusBar.removeClass('fadeOut');
+  },
+
+  closeStatusBar: function(){
+    "use strict";
+    this.statusBar.addClass('fadeOut');
   },
 
   countrySelect: function(e){
+    "use strict";
     var targ = $(e.currentTarget);
     var ctry = targ.attr('data-code');
     $('.js-homeModal-countryList').find('input[type=radio]').prop("checked", false);
@@ -146,16 +293,18 @@ module.exports = Backbone.View.extend({
   },
 
   currencySelect: function(e){
+    "use strict";
     var targ = $(e.currentTarget); //TODO: Rename variables to be more readable
-    var crcy = targ.attr('data-name');
+    //var crcy = targ.attr('data-name');
     var ccode = targ.attr('data-code');
     $('.js-homeModal-currencyList').find('input[type=radio]').prop("checked", false);
     targ.find('input[type=radio]').prop("checked", true);
     //this.model.set('currency', crcy);
-    this.model.set('currencyCode', ccode);
+    this.model.set('currency_code', ccode);
   },
 
   languageSelect: function(e){
+    "use strict";
     var targ = $(e.currentTarget); //TODO: Rename variables to be more readable
     var lang = targ.attr('data-code');
     $('.js-homeModal-languageList').find('input[type=radio]').prop("checked", false);
@@ -164,47 +313,72 @@ module.exports = Backbone.View.extend({
   },
 
   timeSelect: function(e){
+    "use strict";
     var inpt = $(e.target).closest('input[type=radio]'); //TODO: Rename variables to be more readable
     var tz = inpt.attr('id');
     $('.js-homeModal-timezoneList').find('input[type=radio]').prop("checked", false);
     inpt.prop("checked", true);
-    this.model.set('timeZone', tz);
+    this.model.set('time_zone', tz);
   },
 
   newHandle: function(e){
+    "use strict";
     this.$el.find('.js-homeModal-handleInput').closest('.flexRow').removeClass('hide');
     this.$el.find('.js-homeModal-existingHandle').parent().addClass('hide');
     this.$el.find('.js-homeModal-cancelHandle').parent().removeClass('hide');
   },
 
   existingHandle: function(e){
+    "use strict";
     //TODO: add code to connect handle here
   },
 
   cancelHandle: function(e){
+    "use strict";
     this.$el.find('.js-homeModal-handleInput').closest('.flexRow').addClass('hide');
     this.$el.find('.js-homeModal-existingHandle').parent().removeClass('hide');
     this.$el.find('.js-homeModal-cancelHandle').parent().addClass('hide');
   },
 
   uploadAvatar: function(e){
+    "use strict";
     var self = this;
     var reader = new FileReader();
     reader.onload = function (e) {
       self.$el.find('.js-avatarPreview').css('background', 'url(' + e.target.result + ') 50% 50% / cover no-repeat');
-      self.model.set('tempAvatar', e.target.result);
+      //self.model.set('tempAvatar', e.target.result);
       //TODO: add canvas resizing here
     };
     reader.readAsDataURL($(e.target)[0].files[0]);
   },
 
   settingsDone: function(e){
+    "use strict";
     this.model.set('beenSet',true);
     this.$el.find('.js-homeModal').hide();
   },
 
   closeModal: function(e){
-    $(e.target).closest('.modal').addClass('hide');
+    "use strict";
+    $(e.target).closest('.modal').addClass('fadeOut');
+  },
+
+  navAdminPanel: function(){
+    "use strict";
+    this.$el.find('.js-adminModal').removeClass('fadeOut');
+    this.adminPanel.updatePage();
+  },
+
+  close: function(){
+    "use strict";
+    __.each(this.subViews, function(subView) {
+      if(subView.close){
+        subView.close();
+      }else{
+        subView.remove();
+      }
+    });
+    this.remove();
   }
 
 });

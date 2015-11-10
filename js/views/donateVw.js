@@ -1,23 +1,23 @@
 var __ = require('underscore'),
     Backbone = require('backbone'),
     $ = require('jquery'),
+    donateModel = require('../models/donateMd'),    
     loadTemplate = require('../utils/loadTemplate');
 Backbone.$ = $;
 
 module.exports = Backbone.View.extend({
 
-  className: "flexRow custCol-border-secondary",
+  className: "donateView",
 
-  tagName: "li",
-
-  initialize: function(options){
-    this.options = options || {};
-    this.model.set('selected', this.options.selected);
+  initialize: function(){
+    this.model = new donateModel();
+    this.render();
   },
 
   render: function(){
     var self = this;
-    loadTemplate('./js/templates/chooseCountry.html', function(loadedTemplate) {
+    $('#content').html(this.$el);
+    loadTemplate('./js/templates/donate.html', function(loadedTemplate) {
       self.$el.html(loadedTemplate(self.model.toJSON()));
     });
     return this;

@@ -2,22 +2,24 @@ var __ = require('underscore'),
     Backbone = require('backbone'),
     $ = require('jquery'),
     loadTemplate = require('../utils/loadTemplate');
-Backbone.$ = $;
 
 module.exports = Backbone.View.extend({
 
-  className: "flexRow custCol-border-secondary",
+  className: "notification flexRow",
 
-  tagName: "li",
+  events: {
+    //'click .js-item': 'itemClick'
+  },
 
-  initialize: function(options){
-    this.options = options || {};
-    this.model.set('selected', this.options.selected);
+  initialize: function(){
+    var self=this;
+    this.render();
   },
 
   render: function(){
     var self = this;
-    loadTemplate('./js/templates/chooseCountry.html', function(loadedTemplate) {
+    console.log(this.model.toJSON());
+    loadTemplate('./js/templates/notification.html', function(loadedTemplate) {
       self.$el.html(loadedTemplate(self.model.toJSON()));
     });
     return this;

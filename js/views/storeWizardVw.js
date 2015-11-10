@@ -3,10 +3,11 @@ var __ = require('underscore'),
     $ = require('jquery'),
     is = require('is_js'),
     loadTemplate = require('../utils/loadTemplate'),
-    userProfileModel = require('../models/userProfile'),
+    userProfileModel = require('../models/userProfileMd'),
     colpicker = require('../utils/colpick.js'),
     countriesModel = require('../models/countriesMd'),
-    taggle = require('taggle'),
+    showErrorModal = require('../utils/showErrorModal.js'),
+    Taggle = require('taggle'),
     chosen = require('../utils/chosen.jquery.min.js');
 
 module.exports = Backbone.View.extend({
@@ -15,34 +16,24 @@ module.exports = Backbone.View.extend({
 
   events: {
     'click .js-storeWizardModal': 'blockClicks',
-    'click .js-customizeColorInput': 'showColorPicker',
-    'change .js-storeWizardImageUpload': 'uploadImage',
     'click .js-closeStoreWizardModal': 'closeWizard',
     'click .js-storeWizardSave': 'saveWizard',
     'blur input': 'validateInput'
-  },
-
-  getModerators: function() {
-    "use strict";
-    var id = Math.random().toString(36).slice(2)
-    var connection = new WebSocket('ws://seed.openbazaar.org:18466');
-    connection.onopen = function(){
-      console.log("connection open");
-      connection.send({"request": {"api": "v1", "id": id, "command": "get_moderators" }});
-    };
-    connection.onerror = function(error){
-      console.log("connection error "+ error);
-    };
-    connection.onmessage = function(e){
-      console.log("connection message "+ e.data);
-    };
   },
 
   initialize: function(options) {
     "use strict";
     this.options = options || {};
     this.parentEl = $(options.parentEl);
-    this.getModerators();
+    this.socketView = options.socketView;
+    this.model.set('headerURL', this.model.get('user').server_url+"get_image?hash="+this.model.get('page').profile.header_hash);
+
+    this.listenTo(window.obEventBus, "socketMessageRecived", function(response){
+      this.handleSocketMessage(response);
+    });
+    this.socketModeratorID = Math.random().toString(36).slice(2);
+    this.socketView.getModerators(this.socketModeratorID);
+    this.moderatorCount = 0;
     this.render();
   },
 
@@ -79,11 +70,6 @@ module.exports = Backbone.View.extend({
     });
   },
 
-  showColorPicker: function(e){
-    "use strict";
-    $(e.target).colpickShow();
-  },
-
   render: function() {
     "use strict";
     var self = this;
@@ -94,135 +80,74 @@ module.exports = Backbone.View.extend({
       self.parentEl.append(self.$el);
       self.initAccordion('.js-storeWizardAccordion');
       self.setValues();
-      self.setCustomStyles();
-      self.$el.find('.js-customizeColorInput').colpick({
-        layout: "rgbhex", //can also be full, or hex
-        colorScheme: "dark", //can also be light
-        submitText: "Change",
-        flat: true,
-        onShow: function (el) {
-          var colorKey = $(this).attr('id');
-          if(self.model.get('page').profile[colorKey]){
-            $(this).colpickSetColor(self.model.get('page').profile[colorKey].slice(1), true);
-          }
-          //override annoying placement function TODO: fix in source code
-          $(el).css({left: 0, top: 0});
-        },
-        onSubmit: function (hsb, hex, rgb, el) {
-          self.setCustomColor(hex, $(el).attr('id'));
-          $(el).closest('.js-customizeColorWrapper').find('.js-customizeColorLabel').css('background-color', '#' + hex);
-          $(el).colpickHide();
-        },
-        onHide: function () {
-        }
-      }).colpickHide();
-      self.errorModal = $('.js-messageModal');
-    });
-  },
-
-  uploadImage: function(e){
-    var self = this;
-
-    var formData = new FormData(this.$el.find('#storeWizardImageForm')[0]);
-    $.ajax({
-      type: "POST",
-      url: self.model.get('user').server + "upload_image",
-      contentType: false,
-      processData: false,
-      dataType: "json",
-      data: formData,
-      success: function(data) {
-        var errorModal,
-            imageHash = data.image_hashes[0];
-
-        console.log(imageHash)
-
-        if (data.success === true && imageHash !== "b472a266d0bd89c13706a4132ccfb16f7c3b9fcb"){
-          console.log("url("+self.model.get('user').server+"get_image?hash="+imageHash+");");
-          self.$el.find('.js-storeWizardHero').css("background-image", "url("+self.model.get('user').server+"get_image?hash="+imageHash+")");
-          self.$el.find('#headerInput').val(imageHash);
-        }else if (imageHash == "b472a266d0bd89c13706a4132ccfb16f7c3b9fcb") {
-          self.showErrorModal("Changes Could Not Be Saved", "Uploading the image has failed due to the following error: <br/><br/><i>Image hash returned is blank.</i>");
-        }else if (data.success === false){
-          self.showErrorModal("Changes Could Not Be Saved", "Uploading image(s) has failed due to the following error: <br/><br/><i>" + data.reason + "</i>");
-        }
-      },
-      error: function(jqXHR, status, errorThrown){
-        console.log(jqXHR);
-        console.log(status);
-        console.log(errorThrown);
-      }
+      // fade the modal in after it loads and focus the input
+      self.$el.find('.js-storeWizardModal').removeClass('fadeOut');
+      self.$el.find('#storeNameInput').focus();
+      $('#obContainer').addClass('blur');
     });
   },
 
   setValues: function() {
     "use strict";
     var self = this;
-    //add all countries to the Ships To select list
-    var countries = new countriesModel(),
-        countryList = countries.get('countries'),
-        locationSelect = this.$el.find('#locationSelect');
-    
-    __.each(countryList, function(country, i){
-      locationSelect.append('<option value="'+country.dataName+'">'+country.name+'</option>');
-    });
-
-    locationSelect.val(this.model.get('user').country);
-    locationSelect.chosen();
+    this.$el.find('#locationSelect').val(this.model.get('user').country);
     //activate tags plugin
-    this.categoriesInput = new Taggle('categoriesInput');
-  },
-
-  setCustomStyles: function() {
-    "use strict";
-    var self = this;
-    //set custom color input values
-    $('.js-customizeColorInput').each(function(){
-      var newColor = self.model.get('page').profile[$(this).attr('id')];
-      $(this).val(newColor);
-      $(this).closest('.js-customizeColorWrapper').find('.js-customizeColorLabel').css('background-color', newColor);
+    this.categoriesInput = new Taggle('categoriesInput', {
+      saveOnBlur: true
     });
   },
 
-  setCustomColor: function(newColor, colorKey) {
+  handleSocketMessage: function(response) {
     "use strict";
-    var tempPage  =  __.clone(this.model.get('page'));
-    tempPage.profile[colorKey] = '#'+newColor;
-    this.model.set('page', tempPage);
-    this.setCustomStyles();
+    var data = JSON.parse(response.data);
+    if(data.id == this.socketModeratorID){
+      this.addModerator(data);
+    }
   },
 
+  addModerator: function(data){
+    "use strict";
+    var moderatorAvatarURL = this.model.get('user').server_url+"get_image?hash=" + data.moderator.avatar_hash;
+    var newModerator = $(
+        '<div class="pad10 flexRow">' +
+          '<input type="checkbox" id="inputModerator' + this.moderatorCount + '" class="fieldItem" data-guid="' + data.moderator.guid + '">' +
+          '<label for="inputModerator' + this.moderatorCount + '" class="row10 rowTop10 width100">' +
+            '<div class="thumbnail thumbnail-large-slim pull-left box-border" style="background-image: url('+moderatorAvatarURL+'), url(imgs/defaultUser.png);"></div>' +
+              '<div class="pull-left">' +
+              '<div class="row10"><strong>' + data.moderator.name + '</strong></div>' +
+              '<div>' + data.moderator.short_description + '</div>' +
+            '</div>' +
+          '</label>' +
+        '</div>'
+    );
+    this.moderatorCount++;
+    this.$el.find('.js-storeWizardModeratorList').append(newModerator);
+  },
+  
   blockClicks: function(e) {
     "use strict";
     e.stopPropagation();
+
   },
 
   closeWizard: function() {
     "use strict";
+    console.log("close wizard");
     this.close();
   },
 
   validateInput: function(e) {
     "use strict";
     e.target.checkValidity();
-    $(e.target).closest('flexRow').addClass('formChecked');
-  },
-
-  showErrorModal: function(errorTitle, errorMessage) {
-    "use strict";
-    this.errorModal.removeClass('hide');
-    this.errorModal.find('.js-messageModal-title').text(errorTitle);
-    this.errorModal.find('.js-messageModal-message').html(errorMessage);
+    $(e.target).closest('.flexRow').addClass('formChecked');
   },
 
   saveWizard: function() {
     "use strict";
     var self = this,
-        formData = new FormData(),
-        errorModal,
         profileForm = this.$el.find('#storeWizardForm'),
-        formArray = profileForm.serializeArray(),
-        dataModerator = this.model.get('page').profile.moderator;
+        formData = new FormData(profileForm[0]),
+        moderatorsChecked = $('.js-storeWizardModeratorList input:checked');
 
     //add formChecked class to form so invalid fields are styled as invalid
     profileForm.addClass('formChecked');
@@ -231,24 +156,20 @@ module.exports = Backbone.View.extend({
     this.$el.find('#realCategoriesInput').val(this.categoriesInput.getTagValues().join(","));
 
     if(profileForm[0].checkValidity()){
-      //because Chrome can't manipulate formData, first put everything into an array, and manipulate it before adding to formData
-      __.each(formArray, function (formInputData) {
-        if (formInputData.name == 'background_color' || formInputData.name == 'primary_color' || formInputData.name == 'text_color' || formInputData.name == 'secondary_color'){
-          //convert hex to decimal. This value is validated as hex in the form
-          var profileColor = parseInt(formInputData.value.slice(1), 16);
-          formData.append(formInputData.name, profileColor);
-        }else{
-          formData.append(formInputData.name, formInputData.value);
-        }
-      });
 
       //add data not in the form
       formData.append('vendor', true);
-      formData.append('moderator', dataModerator);
+      if(moderatorsChecked.length > 0){
+        moderatorsChecked.each(function () {
+          formData.append('moderator_list', $(this).data('guid'));
+        });
+      } else {
+        formData.append('moderator_list', "");
+      }
 
       $.ajax({
         type: "POST",
-        url: self.model.get('user').server + "profile",
+        url: self.model.get('user').server_url + "profile",
         contentType: false,
         processData: false,
         data: formData,
@@ -257,9 +178,9 @@ module.exports = Backbone.View.extend({
           if (data.success === true){
             self.trigger('storeCreated');
           }else if (data.success === false){
-            self.showErrorModal("Changes Could Not Be Saved", "Saving has failed due to the following error: <br/><br/><i>" + data.reason + "</i>");
+            showErrorModal(window.polyglot.t('errorMessages.saveError'), "<i>" + data.reason + "</i>");
           }else{
-            self.showErrorModal("Changes Could Not Be Saved", "Saving has failed due to the following error: <br/><br/><i>Incorrect reply from server.</i>");
+            showErrorModal(window.polyglot.t('errorMessages.saveError'), "<i>" + window.polyglot.t('errorMessages.serverError') + "</i>");
           }
         },
         error: function (jqXHR, status, errorThrown) {
@@ -269,21 +190,18 @@ module.exports = Backbone.View.extend({
         }
       });
     }else{
-      self.showErrorModal("Changes Could Not Be Saved", "Saving has failed due to the following error: <br/><br/><i>Some required fields are missing or invalid.</i>");
+      showErrorModal(window.polyglot.t('errorMessages.saveError'), window.polyglot.t('errorMessages.missingError'));
     }
 
   },
 
   close: function(){
-    "use strict";
-    __.each(this.subViews, function(subView) {
-      if(subView.close){
-        subView.close();
-      }else{
-        subView.remove();
-      }
-    });
+    console.log("close function")
+    this.unbind();
+    console.log(this);
     this.remove();
+    delete this.$el;
+    delete this.el;
   }
 
 });

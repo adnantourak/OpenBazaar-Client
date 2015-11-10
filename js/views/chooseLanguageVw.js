@@ -5,7 +5,7 @@ var __ = require('underscore'),
 
 module.exports = Backbone.View.extend({
 
-  className: "flexRow",
+  className: "flexRow custCol-border-secondary",
 
   tagName: "li",
 
@@ -20,6 +20,21 @@ module.exports = Backbone.View.extend({
       self.$el.html(loadedTemplate(self.model.toJSON()));
     });
     return this;
+  },
+
+  close: function(){
+    __.each(this.subViews, function(subView) {
+      if(subView.close){
+        subView.close();
+      }else{
+        subView.unbind();
+        subView.remove();
+      }
+    });
+    this.unbind();
+    this.remove();
+    delete this.$el;
+    delete this.el;
   }
 
 });

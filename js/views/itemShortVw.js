@@ -5,7 +5,7 @@ var __ = require('underscore'),
 
 module.exports = Backbone.View.extend({
 
-  className: "flexCol-4",
+  className: "flexCol-4 custCol-border-secondary",
 
   events: {
     'click .js-item': 'itemClick',
@@ -13,24 +13,47 @@ module.exports = Backbone.View.extend({
   },
 
   initialize: function(){
-    this.listenTo(this.model, 'change', this.render);
-    this.userID = this.model.get('userID');
+    //pre-load image
+    var self=this;
+    this.listenTo(this.model, 'change:priceSet', this.render);
+    //this.userID = this.model.get('guid');
+    //if price has already been set, render
+    if(this.model.get('priceSet') !== 0){
+      this.render();
+    }
   },
 
   render: function(){
     var self = this;
     loadTemplate('./js/templates/itemShort.html', function(loadedTemplate) {
-      self.$el.html(loadedTemplate(self.model.toJSON()));
+      self.$el.append(loadedTemplate(self.model.toJSON()));
     });
     return this;
   },
 
   itemClick: function(e){
-    Backbone.history.navigate('#userPage/'+this.userID+'/item/'+$(e.target).data('id'), {trigger: true});
+    var self = this;
+    Backbone.history.navigate('#userPage/'+this.model.get('userID')+'/item/'+$(e.target).closest('.js-item').data('id'), {trigger: true});
   },
 
   avatarClick: function(){
     console.log("avatarClick");
+    Backbone.history.navigate('#userPage/'+this.model.get('userID')+'/store', {trigger: true});
+  },
+
+  close: function(){
+    __.each(this.subViews, function(subView) {
+      if(subView.close){
+        subView.close();
+      }else{
+        subView.unbind();
+        subView.remove();
+      }
+    });
+    this.unbind();
+    this.remove();
+    delete this.$el;
+    delete this.el;
   }
 
 });

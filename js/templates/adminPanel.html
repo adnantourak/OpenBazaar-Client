@@ -1,0 +1,208 @@
+<div class="modal modal-opaque js-adminModal fadeOut">
+  <div class="modal-child modal-childMain pad20 scrollOverflowY">
+    <div class="btn-corner btn-cornerTR js-closeModal">
+      <h3 class="ion-close-circled"></h3>
+    </div>
+    <div class="row20 rowTop20">
+      <h1 class="txt-center">Admin Panel</h1>
+    </div>
+    <p class="txt-center">Use for testing the client.</p>
+    <p class="txt-center">Data changes when you clicke the blue button. The avatar changes as soon as you pick a new image.</p>
+    <p>To point at the local server, use http://localhost:18469/api/v1/</p>
+
+    <h3>Set Server</h3>
+    <div class="box-border row20">
+      <form id="adminPanelServer">
+        <div class="flex-border">
+          <div class="flexRow">
+            <div class="flexCol-4">
+              <div class="fieldItem">
+                <label for="adminServerInput">Change Server</label>
+                <div class="txt-unleaded marginLeft10 js-adminServerMsg"></div>
+              </div>
+            </div>
+            <div class="flexCol-8">
+              <input type="text" name="server_url" class="fieldItem" id="adminServerInput" value="<%- ob.serverUrl %>" pattern="https?://.+"/>
+              <div class="rowTop20 pad20">
+                <a class="btn btn-txt row20 js-adminServer pull-right">Set</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <h3>Set Moderator Status</h3>
+    <div class="box-border row20">
+      <form id="adminPanelModerator">
+        <div class="flex-border">
+          <div class="flexRow">
+            <div class="flexCol-4">
+              <div class="fieldItem">
+                <label>Moderator:</label>
+                <div class="js-adminModeratorMsg"></div>
+              </div>
+            </div>
+            <div class="flexCol-8">
+              <div class="fieldItem">
+                <a class="btn btn-txt pull-right marginRight5 js-adminMakeModerator">Become Moderator</a>
+                <a class="btn btn-txt pull-right js-adminUnmakeModerator">Stop being Moderator</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <h3>Set Avatar</h3>
+    <div class="box-border row20">
+      <form id="adminPanelAvatar">
+        <div class="flex-border">
+          <div class="flexRow">
+            <div class="flexCol-4">
+              <div class="fieldItem">
+                <label for="avatarImageInput">Upload Avatar Image:</label>
+                <div class="js-adminAvatarMsg"></div>
+              </div>
+            </div>
+            <div class="flexCol-8">
+              <div id="image-cropper" class="positionWrapper js-avatarCropper">
+                <div class="statusBar navBar fadeOut positionAbsolute js-avatarLoading">
+                  <div class="pad20 rowTop20 width100"><h4 class="txt-center">Loading Image...</h4></div>
+                </div>
+                <div class="cropit-image-preview rowTop20 thumbnail thumbnail-large box-border row20 marginLeft12"></div>
+                <div>
+                  <input type="range" class="cropit-image-zoom-input rowTop20 row20  marginLeft12" />
+                </div>
+                <input id="avatarImageInput" type="file" class="cropit-image-input hide" />
+                <label for="avatarImageInput" class="btn btn-txt rowTop20 marginLeft12 row20">Upload Avatar</label>
+              </div>
+              <a class="btn btn-txt rowTop20 row20 marginLeft12 js-avatarSubmit fadeOut">Save Avatar</a>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <h3>Set Profile</h3>
+    <div class="box-border row20">
+      <form id="adminPanelProfile">
+        <div class="flex-border">
+          <div class="flexRow">
+            <div class="flexCol-4">
+              <div class="fieldItem">
+                <label for="adminNameInput">Name</label>
+              </div>
+            </div>
+            <div class="flexCol-8 positionWrapper">
+              <input type="text" name="name" class="fieldItem" id="adminNameInput"/>
+            </div>
+          </div>
+          <div class="flexRow">
+            <div class="flexCol-4">
+              <div class="fieldItem">
+                <label for="handleInput">Handle</label>
+                <div class="js-adminServerMsg"></div>
+              </div>
+            </div>
+            <div class="flexCol-8 positionWrapper">
+              <input name="handle" id="handleInput" type="text" class="fieldItem" pattern="^@([A-Za-z0-9_-]{1,34}$)">
+            </div>
+          </div>
+          <div class="flexRow">
+            <div class="flexCol-4">
+              <div class="fieldItem">
+                <label>Vendor</label>
+                <div class="js-adminServerMsg"></div>
+              </div>
+            </div>
+            <div class="flexCol-8 positionWrapper">
+              <input name="vendor" type="radio" class="fieldItem" id="vendorTrue" name="vendor" value="true" /><label for="vendorTrue" class="radioLabel">Yes</label>
+              <input name="vendor" type="radio" class="fieldItem" id="vendorFalse" name="vendor" value="false" checked/><label for="vendorFalse" class="radioLabel">No</label>
+            </div>
+          </div>
+          <div class="flexRow">
+            <div class="flexCol-12">
+              <div class="fieldItem">
+                <a class="btn btn-txt pull-right js-adminUpdateProfile">Change Profile</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <h3>Set Currency</h3>
+    <div class="box-border row20">
+      <form id="adminPanelSettings">
+        <div class="flex-border">
+          <div class="flexRow">
+            <div class="flexCol-4">
+              <div class="fieldItem">
+                <label for="adminCurrencyInput">Currency Code</label>
+              </div>
+            </div>
+            <div class="flexCol-8 positionWrapper">
+              <input type="text" name="currency_code" class="fieldItem" id="adminCurrencyInput"/>
+            </div>
+          </div>
+          <div class="flexRow">
+            <div class="flexCol-12">
+              <div class="fieldItem">
+                <a class="btn btn-txt pull-right js-adminUpdateSettings">Change Settings</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <h3>Connected Peers</h3>
+    <div class="box-border row20">
+      <div class="flex-border">
+        <div class="flexRow">
+          <div class="flexCol-12">
+            <div class="fieldItem">
+              <div class="js-adminPeers"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Routing Table</h3>
+    <div class="box-border row20">
+      <div class="flex-border">
+        <div class="flexRow">
+          <div class="flexCol-12">
+            <div class="fieldItem">
+              <div class="js-adminRoutingTable"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>System</h3>
+    <div class="box-border row20">
+      <div class="flex-border">
+        <div class="flexRow">
+          <div class="flexCol-12">
+            <div class="fieldItem">
+              <div class="pull-left adminMsg"></div>
+              <a class="btn btn-txt pull-right js-adminShutdown">Turn Server Off</a>
+            </div>
+          </div>
+        </div>
+        <div class="flexRow">
+          <div class="flexCol-12">
+            <div class="fieldItem">
+              <a class="btn btn-txt pull-right js-adminCloseApp">Close This Application</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

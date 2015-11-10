@@ -2,30 +2,57 @@
 <head>
   <title>OpenBazaar</title>
   <link href="css/ionicons.min.css" rel="stylesheet">
+  <link href="css/jquery.mCustomScrollbar.min.css" rel="stylesheet" />
   <link href="css/chosen.css" rel="stylesheet">
   <link href="css/colpick.css" rel="stylesheet">
   <link href="css/obBase.css" rel="stylesheet" id="obBase">
 </head>
 <body id="obBody">
 
-<div id="pageNav" class="bar navBar navBar-main custCol-secondary"></div>
-<div class="container  custCol-background custCol-text" id="obContainer">
-  <div id="content"></div>
-  <div id="sideBar"></div>
-  <div class="modal modal-navBlock modal-opaque js-loadingModal">
+  <div id="overlay" class="hide fadeOut"></div>
+  <div id="pageNav" class="bar navBar navBar-main custCol-secondary"></div>
+  <div class="container custCol-background custCol-text" id="obContainer">
+    <div id="content"></div>
+    <div id="sideBar"></div>
+  </div>
+  <div id="obShadow"></div>
+  <div id="modalHolder"></div>
+  <div class="modal modal-navBlock modal-opaqueDark js-loadingModal">
+    <i class="ion-loop spinner textSize90px textOpacity50 fullCentered"></i>
+  </div>
+  <div class="modal modal-opaque hide js-loadingMessageModal">
     <div class="modal-child modal-childMain">
-      <h1 class="fullCentered">Loading...</h1>
+      <div class="btn-corner btn-cornerTR js-closeIndexModal">
+        <h2 class="ion-close-circled"></h2>
+      </div>
+      <h1 class="txt-center rowTop20"><i class="ion-loop spinner"></i> Loading...</h1>
+      <p class="txt-center js-indexLoadingMsg1"></p>
+      <p class="txt-center js-indexLoadingMsg2"></p>
+      <p class="txt-center js-indexLoadingMsg3"></p>
+      <h2 class="txt-center js-indexLoadingMsg4"></h2>
+      <div class="align-bottom row60 width100 positionWrapper">
+        <a class="btn btn-txt hCentered js-closeIndexApp">Close Application</a>
+      </div>
     </div>
   </div>
-</div>
-<div id="obShadow"></div>
 
-<!--TODO: modularize non-modular scripts -->
-<script src="js/utils/list.min.js"></script>
+  <!--TODO: modularize non-modular scripts -->
+  <script src="js/utils/list.min.js"></script>
 
-<script>
-  var app = require('./js/app');
-</script>
+  <script>
+    var app = require('./js/app'),
+        remote = require('remote');
+    $('.js-closeIndexModal').on('click', function(){$(this).closest('.modal').addClass('fadeOut')});
+    $('.js-closeIndexApp').on('click', function(){
+      var win = remote.getCurrentWindow();
+      var process = remote.process;
+      if (process.platform != 'darwin') {
+        win.close();
+      } else {
+        win.hide();
+      }
+    });
+  </script>
 
 </body>
 </html>
