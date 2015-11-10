@@ -493,6 +493,10 @@ form {
   padding-right: 10px;
 }
 
+.pad10Top {
+  padding-top: 10px;
+}
+
 .pad15 {
   padding-left: 15px;
   padding-right: 15px;
@@ -1652,6 +1656,9 @@ input[type="checkbox"].fieldItem + label span {
   padding: 10px 0;
   width: 425px;
   min-height: 250px;
+  max-height: 635px;
+  overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 .popMenu-notificationsHeader {
@@ -2202,6 +2209,13 @@ input[type="checkbox"].fieldItem + label span {
 
 #ov1  .borderTop {
   border-top: solid 1px rgba(255,255,255,0.08);
+}
+
+#ov1 .borderLight,
+#ov1 .borderRight.borderLight,
+#ov1 .borderBottom.borderLight,
+#ov1 .borderTop.borderLight,{
+  border-color: rgba(255,255,255,0.8);
 }
 
 #ov1  .border0 {
