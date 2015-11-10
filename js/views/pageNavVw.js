@@ -8,6 +8,7 @@ var __ = require('underscore'),
     currencyListView = require('../views/currencyListVw'),
     languageListView = require('../views/languageListVw'),
     adminPanelView = require('../views/adminPanelVw'),
+    notificationsPanelView = require('../views/notificationsPanelVw'),
     remote = require('remote'),
     currentWindow;
 
@@ -40,11 +41,13 @@ module.exports = Backbone.View.extend({
     'click .js-closeStatus': 'closeStatusBar'
   },
 
-  initialize: function(){
+  initialize: function(options){
     "use strict";
     var self = this;
     this.subViews = [];
     this.languages = new languagesModel();
+    this.options = options || {};
+
     this.currentWindow = remote.getCurrentWindow();
 
     //when language is changed, re-render
@@ -122,6 +125,8 @@ module.exports = Backbone.View.extend({
       if(self.model.get('beenSet')){
         self.$el.find('.js-homeModal').hide();
       }
+      self.notificationsPanel = new notificationsPanelView({model: self.model, url: self.options.model.attributes.server_url + "get_notifications"});
+      self.subViews.push(self.notificationsPanel);
       //add the admin panel
       self.adminPanel = new adminPanelView({model: self.model});
       self.subViews.push(self.adminPanel);
@@ -143,6 +148,7 @@ module.exports = Backbone.View.extend({
     var targ = this.$el.find('.js-navNotificationsMenu');
     targ.siblings('.popMenu').addClass('hide');
     if(targ.hasClass('hide')){
+      this.notifications.fetch();
       targ.removeClass('hide');
       $('#overlay').removeClass('fadeOut hide');
       $('html').on('click.closeNav', function(e){
