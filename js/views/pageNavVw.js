@@ -134,6 +134,7 @@ module.exports = Backbone.View.extend({
         socketView: self.socketView,
         server_url: self.options.model.attributes.server_url
       });
+      self.listenTo(self.notificationsPanel, 'notificationsCounted', self.setNotificationCount);
       self.subViews.push(self.notificationsPanel);
       //add the admin panel
       self.adminPanel = new adminPanelView({model: self.model});
@@ -169,6 +170,12 @@ module.exports = Backbone.View.extend({
       targ.addClass('hide');
       $('#overlay').addClass('fadeOut hide');
     }
+  },
+
+  setNotificationCount: function(count){
+    "use strict";
+    console.log("setnotificationscount " + count);
+    this.$el.find('.js-navNotifications').attr('data-count', count);
   },
 
   navProfileClick: function(e){
